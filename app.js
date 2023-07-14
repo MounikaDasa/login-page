@@ -5,7 +5,8 @@ const bodyParser=require("body-parser");
 const ejs=require("ejs");
 const mongoose=require("mongoose");
 const encrypt=require("mongoose-encryption");
-const md5=require("md5");
+const bcrypt=require("bcrypt");
+const saltround=10;
 
 const app=express();
 app.use(bodyParser.urlencoded({extended:true}));
@@ -39,28 +40,43 @@ app.get("/register",function(req,res){
 })
 
 app.post("/register",function(req,res){
-const new_user=User({
-    email:req.body.username,
-    password:md5(req.body.password)
-});
-new_user.save()
+const pswd=req.body.password;
+
+
+bcrypt.hash(req.body.password,saltround,function(err,key){
+    if(!err){
+        const new_user=User({
+            email:req.body.username,
+            password:key
+            
+        });
+        new_user.save()
+
+    }
+})
+
 res.render("secrets")
 })
 
 app.post("/login",function(req,res){
     const get_email=req.body.username;
-    const get_pswd=md5(req.body.password);
+    const get_pswd=req.body.password;
     User.findOne({email:get_email}).then(function(details){
         if(details){
-            if(details.password===get_pswd){
+            bcrypt.compare(get_pswd,details.password).then(function(result) {
+                if(result === true)
                 res.render("secrets")
-            }
+            });
         }
-    })
+        else{
+            console.log("unsuccessfol login")
+        }
+          
+        })    
     .catch(function(err){
         console.log(err)
     })
-})
+});
 
 app.listen(3000,function(res){
     console.log("Server is listening to the port 3000")
